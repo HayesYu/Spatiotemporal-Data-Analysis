@@ -5,29 +5,29 @@ Course: NUS ME5311 Project 1
 """
 
 """
-data_loader.py — 数据加载与预处理
-=================================
-- 加载 vector_64.npy  →  shape (nt, ny, nx, 2)
-- 计算时间均值场  mean_field  →  (ny, nx, 2)
-- 计算波动场       fluctuation →  (nt, ny, nx, 2)
-- 构建数据矩阵   data_matrix  →  (N, T)  N=8192, T=15000
-- 计算衍生物理量：涡度 ω、散度 ∇·u（周期边界有限差分）
+data_loader.py — Data Loading & Preprocessing
+==============================================
+- Load vector_64.npy  →  shape (nt, ny, nx, 2)
+- Compute time-averaged mean field  mean_field  →  (ny, nx, 2)
+- Compute fluctuation field          fluctuation →  (nt, ny, nx, 2)
+- Build data matrix                  data_matrix →  (N, T)  N=8192, T=15000
+- Compute derived quantities: vorticity ω, divergence ∇·u (periodic boundary finite differences)
 """
 
 from pathlib import Path
 import numpy as np
 
-# ── 数据集参数 ──────────────────────────────────────────────
-NX, NY = 64, 64              # 空间网格分辨率
-NT     = 15000               # 时间快照数
-DT     = 0.2                 # 时间采样间隔（仿真时间单位）
-N_DOF  = NX * NY * 2         # 单快照自由度  8192
-T_TOTAL = NT * DT            # 总时长 3000
+# ── Dataset parameters ──────────────────────────────────────
+NX, NY = 64, 64              # Spatial grid resolution
+NT     = 15000               # Number of time snapshots
+DT     = 0.2                 # Time sampling interval (simulation time units)
+N_DOF  = NX * NY * 2         # Degrees of freedom per snapshot  8192
+T_TOTAL = NT * DT            # Total duration 3000
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 
 def load_raw(fname: str = "vector_64.npy") -> np.ndarray:
-    """加载原始数据 → (nt, ny, nx, 2)"""
+    """Load raw data → (nt, ny, nx, 2)"""
     data = np.load(DATA_DIR / fname)
     assert data.shape == (NT, NY, NX, 2), f"Unexpected shape {data.shape}"
     print(f"[data_loader] Loaded {fname}  shape={data.shape}  "
@@ -36,13 +36,13 @@ def load_raw(fname: str = "vector_64.npy") -> np.ndarray:
 
 
 def compute_mean_field(data: np.ndarray) -> np.ndarray:
-    """时间平均场 ū(x,y) → (ny, nx, 2)"""
+    """Time-averaged mean field ū(x,y) → (ny, nx, 2)"""
     return data.mean(axis=0)
 
 
 def compute_fluctuation(data: np.ndarray,
                         mean_field: np.ndarray | None = None) -> np.ndarray:
-    """波动场 u' = u - ū → (nt, ny, nx, 2)"""
+    """Fluctuation field u' = u - ū → (nt, ny, nx, 2)"""
     if mean_field is None:
         mean_field = compute_mean_field(data)
     return data - mean_field[np.newaxis, ...]
@@ -50,9 +50,9 @@ def compute_fluctuation(data: np.ndarray,
 
 def build_data_matrix(field: np.ndarray) -> np.ndarray:
     """
-    将 4-D 场 (nt, ny, nx, 2) 展平为 2-D 数据矩阵 (N, T)。
-    每列 = 一个时间快照的 8192 维向量。
-    展平顺序：先 ux 全部 ny×nx，再 uy 全部 ny×nx。
+    Flatten 4-D field (nt, ny, nx, 2) into 2-D data matrix (N, T).
+    Each column = one time snapshot as an 8192-dimensional vector.
+    Flattening order: all ux (ny×nx) followed by all uy (ny×nx).
     """
     nt = field.shape[0]
     # (nt, ny, nx, 2) → (nt, 2, ny, nx) → (nt, 2*ny*nx)
@@ -60,32 +60,32 @@ def build_data_matrix(field: np.ndarray) -> np.ndarray:
     return mat.T  # (N, T)
 
 
-# ── 衍生物理量（周期边界有限差分） ──────────────────────────
+# ── Derived quantities (periodic boundary finite differences) ──
 def _periodic_diff(arr: np.ndarray, axis: int, dx: float = 1.0) -> np.ndarray:
-    """中心差分（周期边界），axis 指定对哪个轴差分。"""
+    """Central difference (periodic boundary) along specified axis."""
     return (np.roll(arr, -1, axis=axis) - np.roll(arr, 1, axis=axis)) / (2.0 * dx)
 
 
 def compute_vorticity(data: np.ndarray, L: float | None = None) -> np.ndarray:
     """
-    涡度  ω = ∂u_y/∂x - ∂u_x/∂y  → (nt, ny, nx)
-    data: (nt, ny, nx, 2)  分量顺序 [ux, uy]
-    L: 域尺寸，用于计算 dx = L/NX（若未给定则取 dx=1）
+    Vorticity  ω = ∂u_y/∂x - ∂u_x/∂y  → (nt, ny, nx)
+    data: (nt, ny, nx, 2)  component order [ux, uy]
+    L: domain size for computing dx = L/NX (defaults to dx=1 if not given)
     """
     dx = (L / NX) if L is not None else 1.0
     dy = (L / NY) if L is not None else 1.0
     ux = data[..., 0]  # (nt, ny, nx)
     uy = data[..., 1]
-    # ∂u_y/∂x  — x 方向对应 axis=2
+    # ∂u_y/∂x  — x-direction corresponds to axis=2
     duy_dx = _periodic_diff(uy, axis=2, dx=dx)
-    # ∂u_x/∂y  — y 方向对应 axis=1
+    # ∂u_x/∂y  — y-direction corresponds to axis=1
     dux_dy = _periodic_diff(ux, axis=1, dx=dy)
     return duy_dx - dux_dy
 
 
 def compute_divergence(data: np.ndarray, L: float | None = None) -> np.ndarray:
     """
-    散度  ∇·u = ∂u_x/∂x + ∂u_y/∂y  → (nt, ny, nx)
+    Divergence  ∇·u = ∂u_x/∂x + ∂u_y/∂y  → (nt, ny, nx)
     """
     dx = (L / NX) if L is not None else 1.0
     dy = (L / NY) if L is not None else 1.0
@@ -96,15 +96,15 @@ def compute_divergence(data: np.ndarray, L: float | None = None) -> np.ndarray:
     return dux_dx + duy_dy
 
 
-# ── 快捷入口 ────────────────────────────────────────────────
+# ── Convenience entry point ──────────────────────────────────
 def load_and_preprocess(fname: str = "vector_64.npy"):
     """
-    一步完成加载 + 均值/波动分离 + 矩阵构建。
-    返回 dict:
+    One-step loading + mean/fluctuation separation + matrix construction.
+    Returns dict:
         raw        : (nt, ny, nx, 2)
         mean_field : (ny, nx, 2)
         fluctuation: (nt, ny, nx, 2)
-        data_matrix: (N, T)   基于波动场
+        data_matrix: (N, T)   based on fluctuation field
         vorticity  : (nt, ny, nx)
         divergence : (nt, ny, nx)
     """

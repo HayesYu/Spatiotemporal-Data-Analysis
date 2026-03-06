@@ -5,12 +5,12 @@ Course: NUS ME5311 Project 1
 """
 
 """
-symmetry_analysis.py — 对称性 & 各向异性诊断
-=============================================
-- 2D 傅里叶谱沿 kx / ky 轴切片对比
-- 谱的镜像对称性检验
-- SVD 模态空间对称性检验
-- ux / uy 分量径向谱差异量化
+symmetry_analysis.py — Symmetry & Anisotropy Diagnostics
+=======================================================
+- 2D Fourier spectrum slices along kx / ky axes comparison
+- Spectral mirror symmetry test
+- SVD mode spatial symmetry test
+- ux / uy component radial spectrum difference quantification
 """
 
 import numpy as np
@@ -18,18 +18,18 @@ from . import data_loader as dl
 from . import visualization as viz
 
 
-# ── 1. 傅里叶谱各向异性 ─────────────────────────────────────
+# ── 1. Fourier spectrum anisotropy ─────────────────────────────
 def axis_slices(psd_2d: np.ndarray):
     """
-    沿 kx 轴（ky=0）和 ky 轴（kx=0）切片。
-    返回 (k_1d, psd_kx_slice, psd_ky_slice)
-    psd_2d 应为 fftshift 之前的原始排布 (ny, nx)。
+    Slice along kx axis (ky=0) and ky axis (kx=0).
+    Returns (k_1d, psd_kx_slice, psd_ky_slice)
+    psd_2d should be in original layout before fftshift (ny, nx).
     """
     ny, nx = psd_2d.shape
-    psd_kx = psd_2d[0, :]          # ky=0 行 → 沿 kx
-    psd_ky = psd_2d[:, 0]          # kx=0 列 → 沿 ky
-    k_1d = np.arange(nx // 2 + 1)  # 非负波数
-    # 由于 FFT 输出前半为 [0..N/2]，后半为负频率对称
+    psd_kx = psd_2d[0, :]          # ky=0 row → along kx
+    psd_ky = psd_2d[:, 0]          # kx=0 column → along ky
+    k_1d = np.arange(nx // 2 + 1)  # non-negative wavenumbers
+    # FFT output: first half is [0..N/2], second half is negative frequency symmetric
     psd_kx = psd_kx[:nx // 2 + 1]
     psd_ky = psd_ky[:ny // 2 + 1]
     return k_1d, psd_kx, psd_ky
@@ -37,23 +37,23 @@ def axis_slices(psd_2d: np.ndarray):
 
 def anisotropy_ratio(psd_kx: np.ndarray, psd_ky: np.ndarray):
     """
-    计算各向异性比  R(k) = PSD_kx(k) / PSD_ky(k)。
-    R ≈ 1 → 各向同性；偏离 1 → 各向异性。
+    Compute anisotropy ratio  R(k) = PSD_kx(k) / PSD_ky(k).
+    R ≈ 1 → isotropic; deviation from 1 → anisotropic.
     """
     eps = 1e-30
     ratio = psd_kx / (psd_ky + eps)
     return ratio
 
 
-# ── 2. 镜像对称性检验 ───────────────────────────────────────
+# ── 2. Mirror symmetry test ─────────────────────────────────
 def mirror_symmetry(psd_2d: np.ndarray):
     """
-    检验 2D PSD 的镜像对称性：
-      x-对称: PSD(kx, ky) vs PSD(-kx, ky)
-      y-对称: PSD(kx, ky) vs PSD(kx, -ky)
-    返回相对误差 (err_x, err_y)，越小越对称。
+    Test mirror symmetry of 2D PSD:
+      x-symmetry: PSD(kx, ky) vs PSD(-kx, ky)
+      y-symmetry: PSD(kx, ky) vs PSD(kx, -ky)
+    Returns relative errors (err_x, err_y); smaller values indicate better symmetry.
     """
-    # PSD(-kx, ky) = np.flip(PSD, axis=1)（FFT 对称性）
+    # PSD(-kx, ky) = np.flip(PSD, axis=1) (FFT symmetry)
     flip_x = np.flip(psd_2d, axis=1)
     flip_y = np.flip(psd_2d, axis=0)
 
@@ -67,8 +67,8 @@ def mirror_symmetry(psd_2d: np.ndarray):
 
 def rotational_symmetry_90(psd_2d: np.ndarray):
     """
-    检验 90° 旋转对称性：PSD(kx,ky) vs PSD(ky,kx)。
-    返回相对误差，越小说明旋转对称性越好（各向同性的必要条件）。
+    Test 90° rotational symmetry: PSD(kx,ky) vs PSD(ky,kx).
+    Returns relative error; smaller values indicate better rotational symmetry (necessary condition for isotropy).
     """
     rotated = psd_2d.T
     norm = np.sum(psd_2d ** 2)
@@ -77,13 +77,13 @@ def rotational_symmetry_90(psd_2d: np.ndarray):
     return err
 
 
-# ── 3. SVD 模态对称性 ───────────────────────────────────────
+# ── 3. SVD mode symmetry ───────────────────────────────────
 def mode_symmetry_check(mode_2d: np.ndarray):
     """
-    对单个空间模态 (ny, nx) 检查：
-      - x 方向镜像对称  mode(y, x) vs mode(y, nx-1-x)
-      - y 方向镜像对称  mode(y, x) vs mode(ny-1-y, x)
-    返回 (corr_x, corr_y)  相关系数，+1=对称, -1=反对称, 0=无关。
+    Check a single spatial mode (ny, nx) for:
+      - x-direction mirror symmetry  mode(y, x) vs mode(y, nx-1-x)
+      - y-direction mirror symmetry  mode(y, x) vs mode(ny-1-y, x)
+    Returns (corr_x, corr_y)  correlation coefficients: +1=symmetric, -1=antisymmetric, 0=uncorrelated.
     """
     flip_x = np.flip(mode_2d, axis=1)
     flip_y = np.flip(mode_2d, axis=0)
@@ -98,11 +98,11 @@ def mode_symmetry_check(mode_2d: np.ndarray):
     return corr_x, corr_y
 
 
-# ── 4. 分量差异量化 ─────────────────────────────────────────
+# ── 4. Component difference quantification ─────────────────────
 def component_energy_ratio(data: np.ndarray):
     """
-    计算 ux 与 uy 的全局能量比。
-    返回 (E_ux, E_uy, ratio = E_ux/E_uy)
+    Compute global energy ratio of ux and uy.
+    Returns (E_ux, E_uy, ratio = E_ux/E_uy)
     """
     E_ux = np.mean(data[..., 0] ** 2)
     E_uy = np.mean(data[..., 1] ** 2)
@@ -111,34 +111,34 @@ def component_energy_ratio(data: np.ndarray):
     return E_ux, E_uy, ratio
 
 
-# ── 顶层运行函数 ────────────────────────────────────────────
+# ── Top-level run function ──────────────────────────────────
 def run(data: np.ndarray, psd_total_2d: np.ndarray,
         svd_modes: list | None = None):
     """
-    完整对称性/各向异性诊断流水线。
-    data         : (nt, ny, nx, 2)  原始或波动场
-    psd_total_2d : (ny, nx)  总能量 2D PSD（来自 spectral_analysis）
-    svd_modes    : [(ux_2d, uy_2d), ...] 来自 svd_analysis
+    Full symmetry/anisotropy diagnostic pipeline.
+    data         : (nt, ny, nx, 2)  raw or fluctuation field
+    psd_total_2d : (ny, nx)  total energy 2D PSD (from spectral_analysis)
+    svd_modes    : [(ux_2d, uy_2d), ...] from svd_analysis
     """
     results = {}
 
-    # 分量能量比
+    # Component energy ratio
     E_ux, E_uy, ratio = component_energy_ratio(data)
     results["energy_ratio"] = ratio
 
-    # 傅里叶谱对称性
+    # Fourier spectrum symmetry
     err_x, err_y = mirror_symmetry(psd_total_2d)
     err_rot = rotational_symmetry_90(psd_total_2d)
     results["mirror_err_x"] = err_x
     results["mirror_err_y"] = err_y
     results["rotation_err"] = err_rot
 
-    # kx / ky 轴切片各向异性
+    # kx / ky axis slice anisotropy
     k_1d, psd_kx, psd_ky = axis_slices(psd_total_2d)
     viz.plot_anisotropy_comparison(psd_kx, psd_ky, k_1d)
     results["anisotropy_ratio"] = anisotropy_ratio(psd_kx, psd_ky)
 
-    # SVD 模态对称性
+    # SVD mode symmetry
     if svd_modes is not None:
         sym_results = []
         for i, (ux_m, uy_m) in enumerate(svd_modes):

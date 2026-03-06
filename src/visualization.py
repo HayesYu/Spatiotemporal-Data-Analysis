@@ -5,10 +5,11 @@ Course: NUS ME5311 Project 1
 """
 
 """
-visualization.py — 统一可视化工具
-=================================
-为各分析模块提供绘图函数，统一配色、标注、导出。
-所有 figure 默认保存至 figures/ 目录。
+visualization.py — Unified Visualization Utilities
+==================================================
+Provides plotting functions for all analysis modules with
+consistent color schemes, annotations, and export settings.
+All figures are saved to the figures/ directory by default.
 """
 
 from pathlib import Path
@@ -16,7 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
-# ── 全局配置 ─────────────────────────────────────────────────
+# ── Global configuration ───────────────────────────────────────
 FIG_DIR = Path(__file__).resolve().parent.parent / "figures"
 FIG_DIR.mkdir(exist_ok=True)
 
@@ -34,20 +35,20 @@ plt.rcParams.update({
 
 
 def savefig(fig, name: str, fmt: str = "png"):
-    """保存图片到 figures/ 目录"""
+    """Save figure to the figures/ directory."""
     path = FIG_DIR / f"{name}.{fmt}"
     fig.savefig(path)
     print(f"[viz] Saved → {path}")
     plt.close(fig)
 
 
-# ── 1. 矢量场快照 ───────────────────────────────────────────
+# ── 1. Vector field snapshots ─────────────────────────────────
 def plot_vector_snapshot(field_2d: np.ndarray, title: str = "Vector field",
                          save_name: str | None = None, step: int = 2):
     """
-    绘制单个 2D 矢量场快照。
+    Plot a single 2D vector field snapshot.
     field_2d: (ny, nx, 2)
-    step: 箭头间隔（降采样，避免过密）
+    step: arrow spacing (downsampling to avoid overcrowding)
     """
     ny, nx, _ = field_2d.shape
     ux, uy = field_2d[..., 0], field_2d[..., 1]
@@ -70,7 +71,7 @@ def plot_vector_snapshot(field_2d: np.ndarray, title: str = "Vector field",
 def plot_scalar_field(field_2d: np.ndarray, title: str = "",
                       cmap: str = "RdBu_r", save_name: str | None = None,
                       symmetric: bool = True):
-    """绘制标量场 (ny, nx)，可选对称色标。"""
+    """Plot a scalar field (ny, nx) with optional symmetric colorbar."""
     fig, ax = plt.subplots(figsize=(6, 5.5))
     vmax = np.abs(field_2d).max() if symmetric else None
     vmin = -vmax if symmetric else None
@@ -83,16 +84,16 @@ def plot_scalar_field(field_2d: np.ndarray, title: str = "",
     return fig, ax
 
 
-# ── 2. SVD 相关 ─────────────────────────────────────────────
+# ── 2. SVD related ─────────────────────────────────────────
 def plot_singular_values(sigma: np.ndarray, n_show: int = 100,
                          save_name: str = "svd_singular_values"):
-    """奇异值衰减曲线 + 累积能量占比。"""
+    """Singular value decay curve + cumulative energy fraction."""
     energy = sigma**2
     cum_energy = np.cumsum(energy) / energy.sum()
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
-    # 左图：奇异值（对数坐标）
+    # Left panel: singular values (log scale)
     ax = axes[0]
     ax.semilogy(np.arange(1, n_show + 1), sigma[:n_show], "o-", ms=3)
     ax.set_xlabel("Mode index $k$")
@@ -100,7 +101,7 @@ def plot_singular_values(sigma: np.ndarray, n_show: int = 100,
     ax.set_title("Singular value spectrum")
     ax.grid(True, alpha=0.3)
 
-    # 右图：累积能量
+    # Right panel: cumulative energy
     ax = axes[1]
     ax.plot(np.arange(1, n_show + 1), cum_energy[:n_show] * 100, "s-", ms=3)
     ax.axhline(95, color="r", ls="--", lw=1, label="95%")
@@ -120,8 +121,8 @@ def plot_spatial_modes(U: np.ndarray, ny: int, nx: int,
                        n_modes: int = 6,
                        save_name: str = "svd_spatial_modes"):
     """
-    可视化前 n_modes 个 SVD 空间模态。
-    U: (N, K)  N = 2*ny*nx，前 N//2 为 ux，后 N//2 为 uy。
+    Visualize the first n_modes SVD spatial modes.
+    U: (N, K)  N = 2*ny*nx, first N//2 is ux, last N//2 is uy.
     """
     half = ny * nx
     fig, axes = plt.subplots(n_modes, 2, figsize=(10, 3 * n_modes))
@@ -145,7 +146,7 @@ def plot_spatial_modes(U: np.ndarray, ny: int, nx: int,
 def plot_temporal_coefficients(Vt: np.ndarray, sigma: np.ndarray,
                                 dt: float, n_modes: int = 6,
                                 save_name: str = "svd_temporal_coeff"):
-    """绘制前 n_modes 个模态的时间系数 σ_k * v_k(t)。"""
+    """Plot temporal coefficients σ_k * v_k(t) for the first n_modes."""
     nt = Vt.shape[1]
     t = np.arange(nt) * dt
 
@@ -164,10 +165,10 @@ def plot_temporal_coefficients(Vt: np.ndarray, sigma: np.ndarray,
     return fig
 
 
-# ── 3. 谱分析相关 ───────────────────────────────────────────
+# ── 3. Spectral analysis related ───────────────────────────────
 def plot_2d_spectrum(psd_2d: np.ndarray, title: str = "2D Power Spectrum",
                      save_name: str | None = None, log: bool = True):
-    """绘制 2D 功率谱（波数域），中心化显示。"""
+    """Plot 2D power spectrum (wavenumber domain), centered display."""
     fig, ax = plt.subplots(figsize=(6, 5.5))
     display = np.log10(psd_2d + 1e-30) if log else psd_2d
     ny, nx = psd_2d.shape
@@ -186,7 +187,7 @@ def plot_2d_spectrum(psd_2d: np.ndarray, title: str = "2D Power Spectrum",
 def plot_radial_spectrum(k_bins: np.ndarray, psd_radial: np.ndarray,
                          title: str = "Radial Power Spectrum",
                          save_name: str | None = None):
-    """绘制径向（1D）功率谱。"""
+    """Plot radial (1D) power spectrum."""
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.semilogy(k_bins, psd_radial, "o-", ms=3)
     ax.set_xlabel("Radial wavenumber $k$")
@@ -201,7 +202,7 @@ def plot_radial_spectrum(k_bins: np.ndarray, psd_radial: np.ndarray,
 def plot_temporal_psd(freqs: np.ndarray, psd: np.ndarray,
                       title: str = "Temporal PSD (spatially averaged)",
                       save_name: str | None = None):
-    """时间频率功率谱。"""
+    """Temporal frequency power spectrum."""
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.semilogy(freqs, psd, lw=0.8)
     ax.set_xlabel("Frequency $f$")
@@ -216,7 +217,7 @@ def plot_temporal_psd(freqs: np.ndarray, psd: np.ndarray,
 def plot_mode_temporal_psd(freqs: np.ndarray, psds: list[np.ndarray],
                            n_modes: int = 6,
                            save_name: str = "svd_mode_temporal_psd"):
-    """前 K 个 SVD 模态时间系数的 PSD。"""
+    """PSD of the first K SVD modal temporal coefficients."""
     fig, axes = plt.subplots(n_modes, 1, figsize=(10, 2.5 * n_modes),
                              sharex=True)
     for i in range(n_modes):
@@ -231,11 +232,11 @@ def plot_mode_temporal_psd(freqs: np.ndarray, psds: list[np.ndarray],
     return fig
 
 
-# ── 4. 对称性 / 各向异性 ────────────────────────────────────
+# ── 4. Symmetry / Anisotropy ────────────────────────────────
 def plot_anisotropy_comparison(psd_kx: np.ndarray, psd_ky: np.ndarray,
                                 k_1d: np.ndarray,
                                 save_name: str = "anisotropy_kx_ky"):
-    """对比 kx 方向与 ky 方向的 1D 谱切片。"""
+    """Compare kx-direction vs ky-direction 1D spectral slices."""
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.semilogy(k_1d, psd_kx, "o-", ms=3, label="PSD along $k_x$ ($k_y=0$)")
     ax.semilogy(k_1d, psd_ky, "s-", ms=3, label="PSD along $k_y$ ($k_x=0$)")
